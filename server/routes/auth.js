@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 const axios = require("axios");
 const bodyParser = require('body-parser')
+const http = require('https');
 const router = express.Router();
 
 // User registration
@@ -206,6 +207,111 @@ router.post('/verify-aadhar', async (req, res) => {
     return res.status(500).json({ message: 'Something Went Wrong' });
   }
   
+});
+
+// ----------------------------------------------------------------------------
+
+
+//-------------------------GST number verification-----------------
+
+router.post('/verify-gst', async (req, res) => {
+  const { gstin } = req.body;
+  const options = {
+    method: 'POST',
+    url: 'https://gst-verification.p.rapidapi.com/v3/tasks/sync/verify_with_source/ind_gst_certificate',
+    headers: {
+      'x-rapidapi-key': 'ddfa20bd14msh6a3d0cbf789b646p130d83jsn7f6f4cb26f7a',
+      'x-rapidapi-host': 'gst-verification.p.rapidapi.com',
+      'Content-Type': 'application/json'
+    },
+    data: {
+      task_id: '74f4c926-250c-43ca-9c53-453e87ceacd1',
+      group_id: '8e16424a-58fc-4ba4-ab20-5bc8e7c3c41e',
+      data: { gstin: gstin }
+    }
+  };
+
+  try {
+    const response = await axios.request(options);
+    console.log(response);
+
+    if (response) {
+      const user = await User.findOneAndUpdate(
+        { gstin: gstin },
+        { $set: { isGstVerified: true } },
+        { new: true }
+      );
+
+      // if (!user) {
+      //   return res.status(404).json({ message: 'User Not Found' });
+      // }
+      return res.status(200).json({ message: 'GST Verified' });
+    } else {
+      return res.status(400).json({ message: 'Invalid GSTIN' });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Something Went Wrong' });
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+
+//-------------------Address lookup -----------------------------
+
+router.get('/verify-pincode/:pincode', async (req, res) => {
+  const { pincode } = req.params;
+  console.log(pincode);
+  
+
+  // Define options for the HTTPS request
+  const options = {
+    method: 'GET',
+    hostname: 'india-pincode-with-latitude-and-longitude.p.rapidapi.com',
+    port: null,
+    path: `/api/v1/pincode/${pincode}`,  // Use the pincode from params
+    headers: {
+      'x-rapidapi-key': 'ddfa20bd14msh6a3d0cbf789b646p130d83jsn7f6f4cb26f7a',
+      'x-rapidapi-host': 'india-pincode-with-latitude-and-longitude.p.rapidapi.com'
+    }
+  };
+
+  try {
+    // Make the HTTPS request
+    const response = await new Promise((resolve, reject) => {
+      const req = http.request(options, (res) => {
+        const chunks = [];
+
+        res.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+
+        res.on('end', () => {
+          const body = Buffer.concat(chunks).toString();
+          resolve(body);
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.end();
+    });
+
+    // Handle the response
+    if (response) {
+      // Verify the pincode details
+      console.log(response);
+      return res.status(200).json({ message: 'Pincode Verified', data: response });
+    } else {
+      return res.status(400).json({ message: 'Invalid Pincode' });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Something Went Wrong' });
+  }
 });
 
 // ----------------------------------------------------------------------------

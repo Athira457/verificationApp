@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styles from './verify.module.css';
 import axios from "axios";
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface AadharVerifyProps {
     aadharNum: string;
@@ -40,6 +41,7 @@ const AadharVerification: React.FC<AadharVerifyProps> = ({ aadharNum }) => {
             />
             <button onClick={verifyAadhar} className={styles.verifyBtn}>Verify Aadhar</button>
             <p className={styles.message}>{verifyResponse}</p>
+            <Link href="/verifyDetails"><button className={styles.verifyBtn}>Verify Other Details</button></Link>
         </div>
     );
 };

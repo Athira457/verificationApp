@@ -8,20 +8,20 @@ const twilio = require('twilio');
 const axios = require("axios");
 const bodyParser = require('body-parser')
 const http = require('https');
+const https = require('https');
 const router = express.Router();
 
 // User registration
 router.post('/signup', async (req, res) => {
     const { name, email, phoneNum, aadharNum, DOB, password } = req.body;
-    console.log(req.body)
-  
+
     try {
       let user = await User.findOne({ email });
       if (user) {
         return res.status(400).json({ message: 'User already exists' });
       }
   
-      user = new User({
+      const newUser = new User({
         name,
         email,
         phoneNum,
@@ -30,8 +30,12 @@ router.post('/signup', async (req, res) => {
         password: await bcrypt.hash(password, 10)
       });
 
-      await user.save();
-  
+      console.log(newUser)
+
+      const response = await newUser.save();
+      console.log(
+        "respnnse", response 
+      );
       res.status(201).json({ message: 'User registered successfully' });
     } catch (err) {
       res.status(500).json({ message: 'Error found' });
@@ -161,23 +165,12 @@ router.post('/verify-otp-sms', async (req, res) => {
 
 router.post('/verify-aadhar', async (req, res) => {
   const { aadharNum } = req.body;
-
-  // const options = {
-  //   method: 'POST',
-  //   url: 'https://api.apyhub.com/validate/aadhaar',
-  //   headers: {
-  //     'apy-token': 'APY0nUS7Mkat55vzKlzwoTsvxV8N3TskfZKpACajcJFfI6zrGFVg5VEFIyy0Pbgd2qNWPoDMge',
-  //     'Content-Type': 'application/json'
-  //   },
-  //   data: { aadhaarNum:aadharNum }
-  // };
-
   const options = {
     method: 'POST',
     url: 'https://api.apyhub.com//validate/aadhaar',
     headers: {
       'Content-Type': 'application/json',
-      'apy-token': 'APY0nUS7Mkat55vzKlzwoTsvxV8N3TskfZKpACajcJFfI6zrGFVg5VEFIyy0Pbgd2qNWPoDMge'
+      'apy-token': 'APY07clu95EsYCcdCaN5zOtpkuXe5BRs76Uqs5QBtRV6frLX4m9QQxTRsAtNHzBSzXPAu'
     },
     data: {aadhaar: aadharNum}
   };
@@ -239,7 +232,7 @@ router.post('/verify-gst', async (req, res) => {
       const user = await User.findOneAndUpdate(
         { gstin: gstin },
         { $set: { isGstVerified: true } },
-        { new: true }
+        { new: true, upsert: true } 
       );
 
       // if (!user) {
@@ -263,7 +256,6 @@ router.post('/verify-gst', async (req, res) => {
 router.get('/verify-pincode/:pincode', async (req, res) => {
   const { pincode } = req.params;
   console.log(pincode);
-  
 
   // Define options for the HTTPS request
   const options = {
@@ -314,5 +306,164 @@ router.get('/verify-pincode/:pincode', async (req, res) => {
   }
 });
 
+// ----------------------------------------------------------------------------
+
+
+//-------------------------PAN number verification---------------------------
+
+router.post('/verify-pan', (req, res) => {
+  const { panNum } = req.body;
+
+  const options = {
+    method: 'POST',
+    hostname: 'aadhaar-number-verification-api-using-pan-number.p.rapidapi.com',
+    port: null,
+    path: '/api/validation/pan_to_aadhaar',
+    headers: {
+      'x-rapidapi-key': 'ddfa20bd14msh6a3d0cbf789b646p130d83jsn7f6f4cb26f7a',
+      'x-rapidapi-host': 'aadhaar-number-verification-api-using-pan-number.p.rapidapi.com',
+      'Content-Type': 'application/json'
+    }
+  };
+
+  const reqApi = https.request(options, function (resApi) {
+    const chunks = [];
+
+    resApi.on('data', function (chunk) {
+      chunks.push(chunk);
+    });
+
+    resApi.on('end', async function () {
+      const body = Buffer.concat(chunks).toString();
+      try {
+        const response = JSON.parse(body);
+        
+        if (response) { 
+          // Update the user record with PAN verification status
+          const user = await User.findOneAndUpdate(
+            { pan: panNum },
+            { $set: { isPanVerified: true } },
+            { new: true, upsert: true } 
+          );
+          return res.status(200).json({ message: 'PAN Verified', user });
+        } else {
+          return res.status(400).json({ message: 'Invalid PAN' });
+        }
+      } catch (error) {
+        console.error('Error parsing or processing response:', error);
+        return res.status(500).json({ message: 'Something Went Wrong' });
+      }
+    });
+  });
+
+  reqApi.write(JSON.stringify({
+    pan: panNum,
+    consent: 'y',
+    consent_text: 'I hereby declare my consent agreement for fetching my information via AITAN Labs API'
+  }));
+
+  reqApi.end();
+});
+
+// ----------------------------------------------------------------------------
+
+
+//-------------------------Account Number verification------------------------------
+
+router.post('/verify-bank-account', (req, res) => {
+  const { bank_account_no, bank_ifsc_code } = req.body;
+
+  const options = {
+    method: 'POST',
+    hostname: 'indian-bank-account-verification.p.rapidapi.com',
+    port: null,
+    path: '/v3/tasks/async/verify_with_source/validate_bank_account',
+    headers: {
+      'x-rapidapi-key': 'ddfa20bd14msh6a3d0cbf789b646p130d83jsn7f6f4cb26f7a',
+      'x-rapidapi-host': 'indian-bank-account-verification.p.rapidapi.com',
+      'Content-Type': 'application/json'
+    }
+  };
+
+  const reqApi = https.request(options, function (resApi) {
+    const chunks = [];
+
+    resApi.on('data', function (chunk) {
+      chunks.push(chunk);
+    });
+
+    resApi.on('end', function () {
+      const body = Buffer.concat(chunks).toString();
+
+      try {
+        const response = JSON.parse(body);
+        console.log(response);
+
+        if (response) { // Assuming there's a 'status' field in the response
+          return res.status(200).json({ message: 'Bank Account Verification Initiated', data: response });
+        } else {
+          return res.status(400).json({ message: 'Bank Account Verification Failed', data: response });
+        }
+      } catch (error) {
+        console.error('Error processing response:', error);
+        return res.status(500).json({ message: 'Something Went Wrong' });
+      }
+    });
+  });
+
+  reqApi.write(JSON.stringify({
+    task_id:"123",
+    group_id:'123',
+    data: {
+      bank_account_no,
+      bank_ifsc_code
+    }
+  }));
+
+  reqApi.end();
+});
+//--------------------------------------
+router.get('/verify-bank-account/:requestId', (req, res) => {
+  const { requestId } = req.params;
+
+  const options = {
+    method: 'GET',
+    hostname: 'indian-bank-account-verification.p.rapidapi.com',
+    port: null,
+    path: `/v3/tasks?request_id=${requestId}`,
+    headers: {
+      'x-rapidapi-key': 'ddfa20bd14msh6a3d0cbf789b646p130d83jsn7f6f4cb26f7a',
+      'x-rapidapi-host': 'indian-bank-account-verification.p.rapidapi.com'
+    }
+  };
+
+  const reqApi = https.request(options, function (resApi) {
+    const chunks = [];
+
+    resApi.on('data', function (chunk) {
+      chunks.push(chunk);
+    });
+
+    resApi.on('end', function () {
+      const body = Buffer.concat(chunks).toString();
+
+      try {
+        const response = JSON.parse(body);
+        console.log(response);
+
+        if (response) { 
+          return res.status(200).json({ message: 'Bank Account Verified', data: response });
+        } else {
+          return res.status(400).json({ message: 'Bank Account Verification Failed', data: response });
+        }
+      } catch (error) {
+        console.error('Error processing response:', error);
+        return res.status(500).json({ message: 'Something Went Wrong' });
+      }
+    });
+  });
+
+  reqApi.end();
+});
 // ----------------------------------------------------------------------------
 module.exports = router;

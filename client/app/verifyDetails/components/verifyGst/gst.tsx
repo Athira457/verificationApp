@@ -21,6 +21,7 @@ export default function Gst() {
         <div className={styles.gstDiv}>
 
              <form>
+                <h3>GST Verification</h3>
                 <input type='text' name="gstno" onChange={(e) => setGstNum(e.target.value)} placeholder='Enter your Gst Number:'  className={styles.inputGst}/>
                 <button onClick={GstVerification} type='submit' className={styles.verifyBtn}>Verify</button>
                 <p className={styles.message}>{verifyResponse}</p>

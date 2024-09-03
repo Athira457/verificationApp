@@ -19,8 +19,8 @@ export default function Pan() {
 
     return (
         <div className={styles.panDiv}>
-
              <form>
+                <h3>PAN Number Verification</h3>
                 <input type='text' name="panno" onChange={(e) => setPanNum(e.target.value)} placeholder='Enter your PAN Number:'  className={styles.inputPan}/>
                 <button onClick={PanVerification} type='submit' className={styles.verifyBtn}>Verify</button>
                 <p className={styles.message}>{verifyResponse}</p>

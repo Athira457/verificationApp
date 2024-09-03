@@ -21,6 +21,7 @@ export default function Address() {
         <div className={styles.addressDiv}>
 
              <form>
+             <h3>PIN Number Verification</h3>
                 <input type='text' name="pinno" onChange={(e) => setPinNum(e.target.value)} placeholder='Enter PIN Number:'  className={styles.inputPin}/>
                 <button onClick={PinVerification} type='submit' className={styles.verifyBtn}>Verify</button>
                 <p className={styles.message}>{verifyResponse}</p>
